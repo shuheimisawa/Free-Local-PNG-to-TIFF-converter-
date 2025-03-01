@@ -12,7 +12,7 @@ A simple, offline PNG to TIFF converter that works entirely in your browser with
 
 ## Usage
 
-1. Open `index.html` in your browser
+1. Open `png-to-tiff` in your browser
 2. Upload one or more PNG files
 3. Click "Convert to TIFF"
 4. Download your converted files
