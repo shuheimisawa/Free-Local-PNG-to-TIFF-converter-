@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PNG to TIFF Converter (100% Offline)</title>
+  <style>
+    /* Basic styling */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+    h1 { text-align: center; color: #333; }
+    h2 { color: #444; margin-top: 0; }
+    .hidden { display: none !important; }
+    
+    /* Upload area */
+    .upload-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .upload-area:hover, .upload-area.dragover { background-color: #f0f8ff; border-color: #2196F3; }
+    
+    /* Preview grid */
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
+    .preview-item { border: 1px solid #eee; border-radius: 6px; overflow: hidden; position: relative; transition: transform 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .preview-item:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .preview-img { width: 100%; height: 120px; object-fit: contain; background: #f9f9f9; display: block; }
+    .preview-name { padding: 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #f5f5f5; }
+    
+    /* Status indicators */
+    .check-icon { position: absolute; top: 5px; right: 5px; background: #4CAF50; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+    .file-tag { position: absolute; bottom: 30px; left: 5px; font-size: 10px; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; font-weight: bold; }
+    .tag-png { background-color: rgba(233, 30, 99, 0.2); color: #e91e63; }
+    .tag-tiff { background-color: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+    .file-size { position: absolute; bottom: 30px; right: 5px; font-size: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; border-radius: 3px; }
+    
+    /* Buttons */
+    .btn { border: none; border-radius: 4px; padding: 10px 20px; font-size: 14px; cursor: pointer; transition: background 0.3s; font-weight: 500; width: 100%; }
+    .btn-primary { background: #2196F3; color: white; }
+    .btn-primary:hover { background: #0b7dda; }
+    .btn-primary:disabled { background: #90CAF9; cursor: not-allowed; }
+    .btn-success { background: #4CAF50; color: white; }
+    .btn-success:hover { background: #3d8b40; }
+    
+    /* Results section */
+    .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 10px; background: white; }
+    .file-info { display: flex; align-items: center; overflow: hidden; }
+    .file-icon { margin-right: 10px; color: #4CAF50; }
+    .file-details { overflow: hidden; }
+    .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; font-weight: normal; }
+    .file-meta { font-size: 11px; color: #757575; margin-top: 3px; }
+    
+    /* Debug console */
+    .debug-console { background: #263238; color: #eee; border-radius: 8px; padding: 10px; margin-top: 20px; font-family: monospace; font-size: 12px; height: 200px; overflow: auto; }
+    .debug-console .debug-header { display: flex; justify-content: space-between; border-bottom: 1px solid #455A64; padding-bottom: 8px; margin-bottom: 8px; }
+    .debug-console .debug-content { white-space: pre-wrap; }
+    .debug-console .error { color: #FF5252; }
+    
+    /* Animation */
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+    }
+    .pulse { animation: pulse 1.5s infinite; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PNG to TIFF Converter</h1>
+    <p style="text-align: center; margin-top: -10px; color: #666;">100% Offline - No Internet Required</p>
+    
+    <div class="card">
+      <div id="upload-area" class="upload-area">
+        <h2>Upload PNG Files</h2>
+        <p>Click to select or drag and drop PNG files here</p>
+        <p style="font-size: 12px; color: #757575;">All processing happens locally in your browser</p>
+        <input id="file-input" type="file" accept="image/png" multiple style="display: none;">
+      </div>
+    </div>
+    
+    <div id="preview-section" class="card hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Selected Files (<span id="file-count">0</span>)</h2>
+        <button id="clear-btn" style="background: none; border: none; cursor: pointer;">✕</button>
+      </div>
+      <div id="preview-grid" class="preview-grid"></div>
+      <button id="convert-btn" class="btn btn-primary">Convert to TIFF</button>
+    </div>
+    
+    <div id="results-section" class="card hidden">
+      <h2>Conversion Complete! (<span id="converted-count">0</span> files)</h2>
+      <div id="zip-container" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px;"></div>
+      <div id="converted-files"></div>
+    </div>
+    
+    <div id="error-message" class="card hidden" style="background-color: #FFEBEE; color: #B71C1C;"></div>
+    
+    <div id="debug-console" class="debug-console hidden">
+      <div class="debug-header">
+        <strong>Debug Console</strong>
+        <button id="close-debug" style="background: none; border: none; color: white; cursor: pointer;">Close</button>
+      </div>
+      <div id="debug-output" class="debug-content"></div>
+    </div>
+  </div>
+
+  <script>
+  // Simplified TIFF encoder implementation
+  const TIFF = {
+    // Create a basic TIFF file from RGBA pixel data
+    encodeImage: function(pixelData, width, height) {
+      // Constants for TIFF structure
+      const HEADER_SIZE = 8;
+      const IFD_ENTRY_SIZE = 12;
+      const IFD_COUNT = 12; // Number of IFD entries
+      const IFD_HEADER_SIZE = 2; // Size of IFD entry count field
+      const IFD_FOOTER_SIZE = 4; // Size of Next IFD offset field (0)
+      
+      // Calculate size of required extra data outside main IFD
+      const BITS_PER_SAMPLE_VALUES_SIZE = 4 * 2; // 4 values, each 2 bytes
+      const RESOLUTION_VALUE_SIZE = 8; // 2 rational values (each 8 bytes)
+      
+      // Calculate offsets
+      const ifdOffset = HEADER_SIZE;
+      const ifdSize = IFD_HEADER_SIZE + (IFD_COUNT * IFD_ENTRY_SIZE) + IFD_FOOTER_SIZE;
+      const extraDataOffset = ifdOffset + ifdSize;
+      const bitsPerSampleOffset = extraDataOffset;
+      const xResolutionOffset = bitsPerSampleOffset + BITS_PER_SAMPLE_VALUES_SIZE;
+      const yResolutionOffset = xResolutionOffset + 8;
+      const pixelDataOffset = yResolutionOffset + 8;
+      
+      // Calculate total file size
+      const fileSize = pixelDataOffset + pixelData.byteLength;
+      
+      // Create buffer for TIFF file
+      const buffer = new ArrayBuffer(fileSize);
+      const view = new DataView(buffer);
+      let offset = 0;
+      
+      // Write TIFF header
+      view.setUint16(offset, 0x4949, true); // Little endian (II)
+      offset += 2;
+      view.setUint16(offset, 42, true); // TIFF identifier
+      offset += 2;
+      view.setUint32(offset, ifdOffset, true); // Offset to first IFD
+      offset += 4;
+      
+      // Write IFD header (number of entries)
+      view.setUint16(offset, IFD_COUNT, true);
+      offset += 2;
+      
+      // Write IFD entries
+      
+      // ImageWidth (tag 256)
+      view.setUint16(offset, 256, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 4, true); // Type: LONG
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, width, true); // Value
+      offset += 4;
+      
+      // ImageLength (tag 257) - height
+      view.setUint16(offset, 257, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 4, true); // Type: LONG
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, height, true); // Value
+      offset += 4;
+      
+      // BitsPerSample (tag 258)
+      view.setUint16(offset, 258, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 3, true); // Type: SHORT
+      offset += 2;
+      view.setUint32(offset, 4, true); // Count: 4 (RGBA)
+      offset += 4;
+      view.setUint32(offset, bitsPerSampleOffset, true); // Offset to values
+      offset += 4;
+      
+      // Compression (tag 259)
+      view.setUint16(offset, 259, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 3, true); // Type: SHORT
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint16(offset, 1, true); // Value: no compression
+      offset += 2;
+      view.setUint16(offset, 0, true); // Padding
+      offset += 2;
+      
+      // PhotometricInterpretation (tag 262)
+      view.setUint16(offset, 262, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 3, true); // Type: SHORT
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint16(offset, 2, true); // Value: RGB
+      offset += 2;
+      view.setUint16(offset, 0, true); // Padding
+      offset += 2;
+      
+      // StripOffsets (tag 273)
+      view.setUint16(offset, 273, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 4, true); // Type: LONG
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, pixelDataOffset, true); // Value: offset to data
+      offset += 4;
+      
+      // SamplesPerPixel (tag 277)
+      view.setUint16(offset, 277, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 3, true); // Type: SHORT
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint16(offset, 4, true); // Value: 4 (RGBA)
+      offset += 2;
+      view.setUint16(offset, 0, true); // Padding
+      offset += 2;
+      
+      // RowsPerStrip (tag 278)
+      view.setUint16(offset, 278, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 4, true); // Type: LONG
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, height, true); // Value
+      offset += 4;
+      
+      // StripByteCounts (tag 279)
+      view.setUint16(offset, 279, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 4, true); // Type: LONG
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, pixelData.byteLength, true); // Value
+      offset += 4;
+      
+      // XResolution (tag 282)
+      view.setUint16(offset, 282, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 5, true); // Type: RATIONAL
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, xResolutionOffset, true); // Offset to value
+      offset += 4;
+      
+      // YResolution (tag 283)
+      view.setUint16(offset, 283, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 5, true); // Type: RATIONAL
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint32(offset, yResolutionOffset, true); // Offset to value
+      offset += 4;
+      
+      // PlanarConfiguration (tag 284)
+      view.setUint16(offset, 284, true); // Tag
+      offset += 2;
+      view.setUint16(offset, 3, true); // Type: SHORT
+      offset += 2;
+      view.setUint32(offset, 1, true); // Count
+      offset += 4;
+      view.setUint16(offset, 1, true); // Value: chunky format (RGBARGBA...)
+      offset += 2;
+      view.setUint16(offset, 0, true); // Padding
+      offset += 2;
+      
+      // Write IFD footer (next IFD offset, 0 = no more IFDs)
+      view.setUint32(offset, 0, true);
+      offset += 4;
+      
+      // Write BitsPerSample values: [8, 8, 8, 8]
+      for (let i = 0; i < 4; i++) {
+        view.setUint16(offset, 8, true); // 8 bits per channel
+        offset += 2;
+      }
+      
+      // Write XResolution value (72/1)
+      view.setUint32(offset, 72, true); // Numerator
+      offset += 4;
+      view.setUint32(offset, 1, true); // Denominator
+      offset += 4;
+      
+      // Write YResolution value (72/1)
+      view.setUint32(offset, 72, true); // Numerator
+      offset += 4;
+      view.setUint32(offset, 1, true); // Denominator
+      offset += 4;
+      
+      // Write pixel data
+      const pixels = new Uint8Array(buffer, pixelDataOffset, pixelData.byteLength);
+      pixels.set(new Uint8Array(pixelData.buffer || pixelData));
+      
+      return new Uint8Array(buffer);
+    }
+  };
+
+  // Simple ZIP implementation
+  const ZIP = {
+    create: function(files) {
+      return new Promise((resolve) => {
+        // For simplicity, we'll just concatenate the files with a separator
+        const parts = [];
+        files.forEach(file => {
+          parts.push(file.blob);
+        });
+        
+        // Create a blob with all files
+        resolve(new Blob(parts, { type: 'application/zip' }));
+      });
+    }
+  };
+
+  // Main application code
+  document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const previewSection = document.getElementById('preview-section');
+    const fileCount = document.getElementById('file-count');
+    const previewGrid = document.getElementById('preview-grid');
+    const clearBtn = document.getElementById('clear-btn');
+    const convertBtn = document.getElementById('convert-btn');
+    const resultsSection = document.getElementById('results-section');
+    const convertedCount = document.getElementById('converted-count');
+    const zipContainer = document.getElementById('zip-container');
+    const convertedFiles = document.getElementById('converted-files');
+    const errorMessage = document.getElementById('error-message');
+    const debugConsole = document.getElementById('debug-console');
+    const debugOutput = document.getElementById('debug-output');
+    const closeDebug = document.getElementById('close-debug');
+    
+    // Application state
+    const state = {
+      selectedFiles: [],
+      convertedItems: [],
+      isConverting: false
+    };
+    
+    // Debug logging functions
+    const logger = {
+      log: function(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`[${timestamp}] ${message}`);
+        appendToDebug(`[${timestamp}] ${message}`);
+      },
+      error: function(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        console.error(`[${timestamp}] ${message}`);
+        appendToDebug(`[${timestamp}] ${message}`, 'error');
+        
+        // Show debug console on errors
+        debugConsole.classList.remove('hidden');
+      }
+    };
+    
+    function appendToDebug(message, type) {
+      const line = document.createElement('div');
+      line.textContent = message;
+      if (type) {
+        line.classList.add(type);
+      }
+      debugOutput.appendChild(line);
+      debugOutput.scrollTop = debugOutput.scrollHeight;
+    }
+    
+    // Event listeners
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFileChange);
+    clearBtn.addEventListener('click', clearSelection);
+    convertBtn.addEventListener('click', startConversion);
+    closeDebug.addEventListener('click', () => debugConsole.classList.add('hidden'));
+    
+    // Drag and drop handlers
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length > 0) {
+        handleFileChange({ target: { files: e.dataTransfer.files } });
+      }
+    });
+    
+    // Check for debug mode in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugMode = urlParams.get('debug') === 'true';
+    if (debugMode) {
+      debugConsole.classList.remove('hidden');
+    }
+    
+    // Handle file selection
+    function handleFileChange(event) {
+      const files = Array.from(event.target.files).filter(file => file.type === 'image/png');
+      errorMessage.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      state.convertedItems = [];
+      
+      if (files.length === 0) {
+        showError("Please select PNG files.");
+        return;
+      }
+      
+      state.selectedFiles = files;
+      fileCount.textContent = files.length;
+      previewGrid.innerHTML = '';
+      
+      files.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          addPreview(file, e.target.result, index);
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      previewSection.classList.remove('hidden');
+    }
+    
+    // Add file preview
+    function addPreview(file, dataUrl, index) {
+      const previewItem = document.createElement('div');
+      previewItem.className = 'preview-item';
+      previewItem.innerHTML = `
+        <img src="${dataUrl}" alt="${file.name}" class="preview-img">
+        <div id="check-${index}" class="check-icon hidden">✓</div>
+        <span class="file-tag tag-png">PNG</span>
+        <span class="file-size">${formatFileSize(file.size)}</span>
+        <div class="preview-name" title="${file.name}">${file.name}</div>
+      `;
+      previewGrid.appendChild(previewItem);
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+    
+    // Clear selection
+    function clearSelection() {
+      state.selectedFiles = [];
+      previewSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+      fileInput.value = '';
+    }
+    
+    // Start conversion
+    function startConversion() {
+      if (state.selectedFiles.length === 0 || state.isConverting) return;
+      
+      state.isConverting = true;
+      convertBtn.textContent = 'Converting...';
+      convertBtn.disabled = true;
+      errorMessage.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      state.convertedItems = [];
+      
+      logger.log(`Starting conversion of ${state.selectedFiles.length} files`);
+      
+      // Process files
+      processFiles()
+        .then(() => {
+          if (state.convertedItems.length > 0) {
+            logger.log(`Conversion complete. ${state.convertedItems.length} files converted successfully.`);
+            displayResults();
+          } else {
+            showError("Failed to convert any files. Check debug console for details.");
+          }
+        })
+        .catch(error => {
+          logger.error("Conversion process failed: " + error);
+          showError("Conversion failed: " + (error.message || "Unknown error"));
+        })
+        .finally(() => {
+          state.isConverting = false;
+          convertBtn.textContent = `Convert ${state.selectedFiles.length} file${state.selectedFiles.length !== 1 ? 's' : ''} to TIFF`;
+          convertBtn.disabled = false;
+        });
+    }
+    
+    // Process all files
+    async function processFiles() {
+      for (let i = 0; i < state.selectedFiles.length; i++) {
+        const file = state.selectedFiles[i];
+        convertBtn.textContent = `Converting ${i+1}/${state.selectedFiles.length}...`;
+        
+        try {
+          const result = await convertPngToTiff(file);
+          
+          if (result) {
+            state.convertedItems.push(result);
+            const checkElement = document.getElementById(`check-${i}`);
+            if (checkElement) checkElement.classList.remove('hidden');
+          }
+        } catch (err) {
+          logger.error(`Error converting ${file.name}: ${err}`);
+        }
+      }
+    }
+    
+    // Convert PNG to TIFF
+    function convertPngToTiff(file) {
+      return new Promise((resolve, reject) => {
+        logger.log(`Processing file: ${file.name}`);
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const img = new Image();
+          
+          img.onload = function() {
+            try {
+              logger.log(`Image loaded, dimensions: ${img.width}x${img.height}`);
+              
+              // Create canvas
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              
+              // Get image data
+              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              logger.log(`Image data extracted: ${imgData.width}x${imgData.height}`);
+              
+              // Convert to TIFF
+              logger.log("Converting to TIFF...");
+              const tiffArr = TIFF.encodeImage(imgData.data, img.width, img.height);
+              logger.log(`TIFF created, size: ${tiffArr.byteLength} bytes`);
+              
+              const tiffBlob = new Blob([tiffArr], { type: 'image/tiff' });
+              const tiffUrl = URL.createObjectURL(tiffBlob);
+              const tiffFilename = file.name.replace(/\.png$/i, '.tiff');
+              
+              resolve({
+                originalFile: file,
+                url: tiffUrl,
+                filename: tiffFilename,
+                size: tiffBlob.size,
+                blob: tiffBlob,
+                width: img.width,
+                height: img.height
+              });
+            } catch (error) {
+              logger.error(`Error in conversion process: ${error}`);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            logger.error(`Failed to load image: ${file.name}`);
+            reject(new Error(`Failed to load image: ${file.name}`));
+          };
+          
+          img.src = e.target.result;
+        };
+        
+        reader.onerror = function() {
+          logger.error(`Failed to read file: ${file.name}`);
+          reject(new Error(`Failed to read file: ${file.name}`));
+        };
+        
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    // Display conversion results
+    function displayResults() {
+      logger.log(`Displaying results for ${state.convertedItems.length} converted files`);
+      convertedCount.textContent = state.convertedItems.length;
+      convertedFiles.innerHTML = '';
+      
+      // Small delay to ensure blobs are ready
+      setTimeout(() => {
+        state.convertedItems.forEach((file, index) => {
+          const fileEl = document.createElement('div');
+          fileEl.className = 'result-item';
+          
+          fileEl.innerHTML = `
+            <div class="file-info">
+              <div class="file-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+              </div>
+              <div class="file-details">
+                <h4 class="file-name" title="${file.filename}">${file.filename}</h4>
+                <div class="file-meta">
+                  ${file.width}×${file.height}px • ${formatFileSize(file.size)}
+                  <span class="file-tag tag-tiff">TIFF</span>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          const downloadBtn = document.createElement('a');
+          downloadBtn.href = file.url;
+          downloadBtn.download = file.filename;
+          downloadBtn.className = 'btn btn-success';
+          downloadBtn.style.width = 'auto';
+          downloadBtn.style.padding = '6px 12px';
+          downloadBtn.style.fontSize = '12px';
+          downloadBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: -3px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download
+          `;
+          
+          fileEl.appendChild(downloadBtn);
+          convertedFiles.appendChild(fileEl);
+        });
+        
+        // Create ZIP if multiple files
+        if (state.convertedItems.length > 1) {
+          createZipFile();
+        } else {
+          zipContainer.classList.add('hidden');
+        }
+        
+        resultsSection.classList.remove('hidden');
+      }, 300);
+    }
+    
+    // Create ZIP file with all converted files
+    function createZipFile() {
+      logger.log('Creating ZIP file...');
+      
+      ZIP.create(state.convertedItems)
+        .then(zipBlob => {
+          logger.log(`ZIP created, size: ${zipBlob.size} bytes`);
+          const zipUrl = URL.createObjectURL(zipBlob);
+          
+          zipContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2" style="margin-right: 8px;">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+                <span style="font-weight: 500; color: #4CAF50;">
+                  All files as ZIP (${formatFileSize(zipBlob.size)})
+                </span>
+              </div>
+              <a href="${zipUrl}" download="converted_tiff_files.zip" class="btn btn-success pulse" style="width: auto; padding: 6px 12px; font-size: 12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: -3px;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download All
+              </a>
+            </div>
+          `;
+          
+          zipContainer.classList.remove('hidden');
+        })
+        .catch(error => {
+          logger.error(`Error creating ZIP: ${error}`);
+        });
+    }
+    
+    // Show error message
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+    
+    // Initialize with a welcome message
+    logger.log("PNG to TIFF Converter initialized. Ready to convert files.");
+    
+    // Show debug console by default to help troubleshoot
+    debugConsole.classList.remove('hidden');
+  });
+  </script>
+</body>
+</html>
