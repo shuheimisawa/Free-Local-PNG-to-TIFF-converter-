@@ -1,0 +1,35 @@
+{
+  "name": "png-to-tiff-converter",
+  "version": "1.0.0",
+  "description": "A browser-based tool that converts PNG images to TIFF format locally",
+  "main": "src/js/app.js",
+  "scripts": {
+    "start": "http-server -o",
+    "build": "mkdir -p dist && cp -r src/* dist/",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "png",
+    "tiff",
+    "converter",
+    "image",
+    "web-tool"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "utif": "^3.1.0"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shuheimisawa/png-to-tiff-converter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shuheimisawa/png-to-tiff-converter/issues"
+  },
+  "homepage": "https://github.com/shuheimisawa/png-to-tiff-converter#readme"
+}
